@@ -27,7 +27,6 @@ def Mnn(np.ndarray[double, ndim=2] X, int M):
             distances[i][j] = _squared_distance(X[i, :], X[j, :])
     
     i = 0
-    j = 0
     for i in range(n):
         S[i] = np.argsort(distances[i, ])[1:M+1]
 
