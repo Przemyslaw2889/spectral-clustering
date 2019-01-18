@@ -54,5 +54,3 @@ def spectral_clustering(X, k, M):
     kmeans = KMeans(n_clusters=k)
     clustering = kmeans.fit_predict(X)
     return clustering
-
-
