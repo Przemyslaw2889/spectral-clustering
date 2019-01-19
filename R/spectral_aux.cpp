@@ -7,7 +7,7 @@ using namespace Rcpp;
 double squared_distance(NumericVector x, NumericVector y){
   int n = x.size();
   if(y.size() != n)
-    throw std::runtime_error("Size of x must be equal to size of y");
+    throw std::runtime_error("Size of x must be equal to size of y!");
   
   double distance = 0;
   for(int i = 0; i < n; i++)
@@ -21,7 +21,7 @@ double squared_distance(NumericVector x, NumericVector y){
 typedef std::pair<int, double> enumerated;
 
 bool compare_value(enumerated first_pair, enumerated second_pair){
-  return first_pair.second > second_pair.second;  // Note: > not <
+  return first_pair.second > second_pair.second;  // Note: '>' not '<'
 }
 
 NumericVector indexes_of_m_smallest(NumericVector x, int m){
@@ -66,10 +66,7 @@ NumericMatrix Mnn(NumericMatrix X, int M){
 }
 
 
-// Testing
-//
-
-/*** R
+/*
 X <- rbind(c(1, 2, 3), c(1, 2, 4), c(100, 100, 100), c(1, 2, 5), c(1, 2, 6), c(22, 23, 24))
 Mnn(X, 2)
 */
