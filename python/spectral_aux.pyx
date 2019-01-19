@@ -20,8 +20,7 @@ def Mnn(np.ndarray[double, ndim=2] X, int M):
     cdef np.ndarray[double, ndim=2] distances = np.empty((n, n), dtype=np.double)
     cdef np.ndarray[double, ndim=2] S = np.zeros((n, M), dtype=np.double)
 
-    cdef int i = 0
-    cdef int j = 0
+    cdef int i, j
     for i in range(n):
         for j in range(n):
             distances[i][j] = _squared_distance(X[i, :], X[j, :])
