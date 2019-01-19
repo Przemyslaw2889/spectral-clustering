@@ -12,6 +12,18 @@ def _squared_distance(np.ndarray[double] x, np.ndarray[double] y):
     return distance
 
 
+def create_adjacency_matrix(np.ndarray[double, ndim=2] S):
+    n = S.shape[0]
+    cdef np.ndarray[double, ndim=2] G = np.zeros((n, n), dtype=np.double)
+    cdef int i, j
+    for i in range(n):
+        for j in range(i, n):
+            if i in S[j, :] or j in S[i, :]:
+                G[i, j] = 1
+                G[j, i] = 1
+    return G
+
+
 def Mnn(np.ndarray[double, ndim=2] X, int M):
     cdef int n = X.shape[0]
     if M >= n-1:

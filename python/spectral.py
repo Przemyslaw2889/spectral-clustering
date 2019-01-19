@@ -8,7 +8,7 @@ pyximport.install(setup_args={
                               "include_dirs":np.get_include()},
                   reload_support=True)
 
-from spectral_aux import Mnn
+from spectral_aux import Mnn, create_adjacency_matrix
 
 
 def Laplacian_eigen(G, k):
@@ -18,7 +18,7 @@ def Laplacian_eigen(G, k):
     for i in range(n):
         D[i, i] = np.sum(G[i, :])
     L = D - G
-    _, E = eigh(L, eigvals=(1, k+1))
+    _, E = eigh(L, eigvals=(2, k))
     return E
 
 
@@ -28,12 +28,7 @@ def Mnn_graph(S):
     In graph G vertices i and j are connected (G[i, j] == 1) if and only if
     i is in M nearest neighbours of j or j is in M nearest neighbours of i
     """
-    n = S.shape[0]
-    G = np.zeros((n, n), dtype=np.int)
-    for i in range(n):
-        for j in range(n):
-            if i in S[j, :] or j in S[i, :]:
-                G[i, j] = 1
+    G = create_adjacency_matrix(S)
 
     # Connecting a graph (randomly)
     G_nx = nx.from_numpy_matrix(G)
@@ -47,10 +42,18 @@ def Mnn_graph(S):
     return G
 
 
-def spectral_clustering(X, k, M):
+def spectral_clustering(X, k, M, verbose=False):
+    if verbose:
+        print("Mnn function")
     S = Mnn(X, M)
+    if verbose:
+        print("Mnn_graph function")
     G = Mnn_graph(S)
+    if verbose:
+        print("Laplacian_eigen function")
     E = Laplacian_eigen(G, k)
+    if verbose:
+        print("Kmeans")
     kmeans = KMeans(n_clusters=k)
-    clustering = kmeans.fit_predict(X)
+    clustering = kmeans.fit_predict(E)
     return clustering
