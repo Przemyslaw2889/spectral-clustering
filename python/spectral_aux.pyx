@@ -25,6 +25,7 @@ def create_adjacency_matrix(np.ndarray[double, ndim=2] S):
 
 
 def Mnn(np.ndarray[double, ndim=2] X, int M):
+    
     cdef int n = X.shape[0]
     if M > n-1:
         raise ValueError("M must be no bigger than n-1")

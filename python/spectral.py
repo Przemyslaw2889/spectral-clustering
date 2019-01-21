@@ -19,7 +19,7 @@ def Laplacian_eigen(G, k):
     for i in range(n):
         D[i, i] = np.sum(G[i, :])
     L = D - G
-    _, E = eigh(L, eigvals=(2, k))
+    _, E = eigh(L, eigvals=(1, k))
     return E
 
 
@@ -44,6 +44,15 @@ def Mnn_graph(S):
 
 
 def spectral_clustering(X, k, M, verbose=False):
+    """
+    Main function.
+
+    X: matrix of observations
+    k: anticipated number of classes
+    M: hyperparameter - number of nearest neighbours to take
+
+    returns: array of classes predictions for each observation
+    """
     n = X.shape[0]
 
     if M > n-1:
