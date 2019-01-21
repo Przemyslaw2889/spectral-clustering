@@ -1,6 +1,7 @@
 import numpy as np
 import networkx as nx
 import random
+import warnings
 import pyximport
 from scipy.linalg import eigh
 from sklearn.cluster import KMeans
@@ -43,17 +44,27 @@ def Mnn_graph(S):
 
 
 def spectral_clustering(X, k, M, verbose=False):
+    n = X.shape[0]
+
+    if M > n-1:
+        print("spectral clustering: M={} was to large and it was changed to {}".format(M, n-1))
+        M = n-1
+
     if verbose:
         print("Mnn function")
     S = Mnn(X, M)
+    
     if verbose:
         print("Mnn_graph function")
     G = Mnn_graph(S)
+
     if verbose:
         print("Laplacian_eigen function")
     E = Laplacian_eigen(G, k)
+
     if verbose:
         print("Kmeans")
     kmeans = KMeans(n_clusters=k)
     clustering = kmeans.fit_predict(E)
+    
     return clustering
