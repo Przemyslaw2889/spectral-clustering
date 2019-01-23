@@ -53,8 +53,8 @@ NumericMatrix Mnn(NumericMatrix X, int M){
   int n = X.nrow();
   int d = X.ncol();
   
-  NumericMatrix distances(n,n);
-  NumericMatrix S(n,M);
+  NumericMatrix distances(n, n);
+  NumericMatrix S(n, M);
   
   for(int i = 0; i < n; i++){
     for(int j = 0; j < n; j++)
@@ -64,6 +64,20 @@ NumericMatrix Mnn(NumericMatrix X, int M){
   
   return S;
 }
+
+
+// bool in_(NumericVector x, double number){
+//   
+// }
+// 
+// NumericMatrix get_adjacency_matrix(NumericMatrix S){
+//   int n = S.nrow();
+//   NumericMatrix G(n, n);
+//   
+//   for(int i = 0; i < n; i++)
+//     for(int j = 0; j < n; j++)
+//       
+// }
 
 
 /*

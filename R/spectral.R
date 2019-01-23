@@ -50,7 +50,7 @@ spectral_clustering <- function(X, k, M=20){
   
   S <- Mnn(X, 2)
   G <- Mnn_graph(S)
-  E <- Laplacian_eigen(E, k)
+  E <- Laplacian_eigen(G, k)
   km <- kmeans(E, k)
   return(km$cluster)
 }
