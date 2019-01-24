@@ -17,7 +17,7 @@ double squared_distance(NumericVector x, NumericVector y){
 }
 
 
-// Code to find indexes of smallest elements in an array (using heap structure)
+// Code to find indexes of smallest elements in an array (using heap structure, because sorting is slow)
 typedef std::pair<int, double> enumerated;
 
 bool compare_value(enumerated first_pair, enumerated second_pair){
@@ -66,19 +66,19 @@ NumericMatrix Mnn(NumericMatrix X, int M){
 }
 
 
-// bool in_(NumericVector x, double number){
-//   
-// }
-// 
-// NumericMatrix get_adjacency_matrix(NumericMatrix S){
-//   int n = S.nrow();
-//   NumericMatrix G(n, n);
-//   
-//   for(int i = 0; i < n; i++)
-//     for(int j = 0; j < n; j++)
-//       
-// }
+// [[Rcpp::export]]
+NumericMatrix get_adjacency_matrix(NumericMatrix S){
+  int n = S.nrow();
+  NumericMatrix G(n, n);
 
+  for(int i = 0; i < n; i++)
+    for(int j = i; j < n; j++)
+      if(is_true(any(S(i, _) == j)) || is_true(any(S(j, _) == i))){
+        G(i, j) = 1;
+        G(j, i) = 1;
+      }
+  return G;
+}
 
 /*
 X <- rbind(c(1, 2, 3), c(1, 2, 4), c(100, 100, 100), c(1, 2, 5), c(1, 2, 6), c(22, 23, 24))

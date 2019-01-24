@@ -9,15 +9,7 @@ Mnn_graph <- function(S){
     In graph G vertices i and j are connected (G[i, j] == 1) if and only if
     i is in M nearest neighbours of j or j is in M nearest neighbours of i
   "
-  n <- nrow(S)
-  G <- matrix(0, nrow = n, ncol = n)
-  
-  for(i in 1:n)
-    for(j in i:n)
-      if(i %in% S[j, ] || j %in% S[i, ]){
-        G[i, j] = 1
-        G[j, i] = 1
-      }
+  G <- get_adjacency_matrix(S)
   
   # Connecting a graph
   g_igraph <- graph_from_adjacency_matrix(G)
