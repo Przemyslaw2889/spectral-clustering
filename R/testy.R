@@ -1,5 +1,5 @@
-library(dendextend)
 library(mclust)
+library(dendextend)
 library(genie)
 
 source("spectral.R")
@@ -22,7 +22,7 @@ plot_data <- function(X, Y, title=""){
 }
 
 
-test_spectral_single <- function(benchmark, dataset, M=20, k=NULL, scale=FALSE){
+test_spectral_single <- function(benchmark, dataset, M=20, k=NULL, scale=FALSE, plot=TRUE){
   data <- read_data(benchmark, dataset)
   X <- data$X
   if(scale){
@@ -34,7 +34,9 @@ test_spectral_single <- function(benchmark, dataset, M=20, k=NULL, scale=FALSE){
   }
   set.seed(42)  # because kmeans in spectral clustering randomly initializes centers
   Y_pred <- spectral_clustering(X, k, M)
-  plot_data(X, Y_pred, paste(paste(benchmark, dataset, sep="/"), ": spectral ", sep=""))
+  if(plot){
+    plot_data(X, Y_pred, paste(paste(benchmark, dataset, sep="/"), ": spectral ", sep=""))
+  }
   print(paste("FM:", FM_index(Y, Y_pred), " AR:", adjustedRandIndex(Y, Y_pred), sep=" "))
   #return(Y_pred)
 }
@@ -147,7 +149,7 @@ save_hearts <- function(n, n_hearts){
   return(list(X=X, Y=Y))
 }
 
-data <- hearts(50, 2)
+data <- save_hearts(50, 2)
 X <- data$X
 Y <- data$Y
 plot_data(X, Y)
