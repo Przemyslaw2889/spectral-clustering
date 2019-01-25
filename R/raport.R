@@ -141,6 +141,8 @@ result_kmeans <- function(benchmark, dataset, k=NULL, scale=FALSE){
               AR=adjustedRandIndex(Y, Y_pred)))
 }
 
+### Testing all datasets
+
 result <- list()
 benchmarks <- c("fcps", "graves", "other", "sipu", "wut")
 for(benchmark in benchmarks){
@@ -175,54 +177,6 @@ for(benchmark in benchmarks){
 
 write.csv(result, "results.csv")
 
-### Analiza wynikow
-result <- read.csv("results.csv")
-
-# Ktory algorytm jest najlepszy
-result %>% select(algorithm, FM, AR) %>% 
-  group_by(algorithm) %>% summarise(mean_FM = mean(FM), mean_AR = mean(AR)) %>%
-  arrange(desc(mean_FM))
-
-genie_mclust <- result %>% select(algorithm, FM) %>% filter(algorithm %in% c("genie", "hclust_average"))
-pairwise.wilcox.test(genie_mclust$FM, g=genie_mclust$algorithm)
-
-spectral_hclust <- result %>% select(algorithm, FM) %>% filter(algorithm %in% c("hdbscan", "genie"))
-#pairwise.wilcox.test(genie_mclust$FM, g=spectral_hclust$algorithm)
-spectral_hclust %>% arrange(FM)
-genie_result <- result %>% filter(algorithm == "genie") %>% select(FM)
-typeof(unlist(genie_result))
-
-### Badanie wplywu M
-
-test_spectral_single <- function(benchmark, dataset, M=20, k=NULL, scale=FALSE, plot=TRUE){
-  data <- read_data(benchmark, dataset)
-  X <- data$X
-  if(scale){
-    X <- scale(X)
-  }
-  Y <- data$Y
-  if(is.null(k)){
-    k = length(unique(unlist(Y)))
-  }
-  set.seed(42)  # because kmeans in spectral clustering randomly initializes centers
-  Y_pred <- spectral_clustering(X, k, M)
-  if(plot){
-    plot_data(X, Y_pred, paste(paste(benchmark, dataset, sep="/"), ": spectral ", "M=", M, sep=""))
-  }
-  print(paste("FM:", FM_index(Y, Y_pred), " AR:", adjustedRandIndex(Y, Y_pred), sep=" "))
-}
-
-Ms <- c(2, 10, 20, 50)
-benchmark <- "graves"; dataset <- "parabolic"
-benchmark <- "sipu"; dataset <- "flame"
-for(m in Ms){
-  print(m)
-  test_spectral_single(benchmark, dataset, M=m)
-}
-
-
-
-
 ##### More tests: HDBSCAN and Kmeans
 result <- list()
 benchmarks <- c("fcps", "graves", "other", "sipu", "wut")
@@ -244,7 +198,7 @@ for(benchmark in benchmarks){
 
     }
   }
-  write.csv2(result, "results_hdbscan_kmeans.csv")  # writing to have at least partial results
+  write.csv(result, "results_hdbscan_kmeans.csv")  # writing to have at least partial results
 }
 
 write.csv(result, "results_hdbscan_kmeans.csv")
