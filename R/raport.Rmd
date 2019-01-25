@@ -14,14 +14,14 @@ library(dplyr)
 
 Poniżej kod skryptu, w którym przetestowałem algorytmy na wszystkich zbiorach benchamrkowych i zapisałem wyniki do pliku `results.csv`.
 
-```{r, eval=FALSE}
+```{r, message=FALSE}
 library(mclust)
 library(dendextend)
 library(genie)
+library(dbscan)
 library(stringi)
 
 source("spectral.R")
-
 
 read_data <- function(benchmark, dataset){
   matrix_file_name <- paste(dataset, ".data.gz", sep="")
@@ -32,12 +32,14 @@ read_data <- function(benchmark, dataset){
   Y <- as.matrix(read.table(labels_path))
   return(list(X=X, Y=Y))
 }
-
+  
 plot_data <- function(X, Y, title=""){
   plot(X[, 1], X[, 2], col=unlist(Y), pch=20)
   title(title)
 }
+```
 
+```{r, eval=FALSE}
 result_spectral <- function(benchmark, dataset, M=20, k=NULL, scale=FALSE, plot=FALSE){
   data <- read_data(benchmark, dataset)
   X <- data$X
@@ -185,28 +187,31 @@ for(benchmark in benchmarks){
                       result_kmeans(benchmark, dataset))
     }
   }
-  write.csv2(result, "results.csv")  # writing to have at least partial results
+  write.csv(result, "results.csv")
 }
 
 write.csv(result, "results.csv")
 ```
 
 ## Analiza wyników
-```{r}
+```{r, cache=TRUE}
 result <- read.csv("results.csv")
 ```
 
-### Ktory algorytm jest najlepszy
-```{r}
+### Ktory algorytm jest najlepszy?
+```{r, cache=TRUE}
 result %>% select(algorithm, FM, AR) %>% 
   group_by(algorithm) %>% summarise(mean_FM = mean(FM), mean_AR = mean(AR)) %>%
   arrange(desc(mean_FM))
 ```
 Cieszymy się patrząc na te wyniki, bo widzimy że spectral clustering nie jest na końcu. Nie odstaje tak bardzo od metod funkcji `hclust`. Jedynie `genie` znacząco wyprzedza je wszystkie, zarówno dla miary FM jak i (zwłaszcza) AR. 
-### Czy genie jest rzeczywiście najlepszy?
+
+### Czy genie rzeczywiście jest najlepszy?
+
+
 Nie ufamy za bardzo tym wynikom. Któryś z algorytmów musiał mieć największy wynik FM, ale być może było to całkiem przypadkowe. Dlatego sprawdźmy czy możemy mówić o statystycznej istotności tego wyniku. 
 
-```{r}
+```{r, warning=FALSE}
 genie_result <- unlist(result %>% filter(algorithm == "genie") %>% select(FM))
 hclust_result <- unlist(result %>% filter(algorithm == "hclust_average") %>% select(FM))
 
@@ -217,38 +222,110 @@ Wynik, który otrzymujemy jest przybliżony. Genie okazuje się najlepszy i to m
 
 Sprawdźmy wynik porównań wszystkich algorytmów. Musimy tutaj uważać na problem wielokrotnego testowania, ale twórcy funkcji `pairwise.wilcox.test` pomyśleli o tym. Co ciekawe radzą sobie z tym metodą Holma, ale mamy też do wyboru inne metody.
 
-```{r, message=FALSE}
+```{r, message=FALSE, warning=FALSE}
 pairwise.wilcox.test(result$FM, result$algorithm)
 ```
 
-Testując wielokrotnie nie ma podstaw do odrzucenia hipotezy że nasz algorytm jest tak samo dobry jak hclust_average, ale wydaje mi się, ze nie ma się czym cieszyć. Nie mamy podstaw do powiedzenia, że wyniki hdbscanu są gorsze niż hclust_complete, a gołym okiem widać że gorsze są (nie mamy też podstaw do )
+Testując wielokrotnie nie ma podstaw do odrzucenia hipotezy że nasz algorytm jest tak samo dobry jak hclust_average, ale wydaje mi się, ze nie ma się czym cieszyć. Nie mamy podstaw do powiedzenia, że wyniki hdbscanu są gorsze niż hclust_complete, a gołym okiem widać że gorsze są.
 
-Okazuje się, że nawet robiąc test jednokrotny nie ma podstaw do odrzucenia hipotezy, że nasz algorytm jest tak samo dobry jak hclust_average. 
+Okazuje się jednak, że nawet robiąc test jednokrotny nie ma podstaw do odrzucenia hipotezy, że nasz algorytm jest tak samo dobry jak hclust_average. 
 
-```{r}
+```{r, warning=FALSE}
 spectral_result <- unlist(result %>% filter(algorithm == "spectral") %>% select(FM))
 hclust_result <- unlist(result %>% filter(algorithm == "hclust_average") %>% select(FM))
 
-wilcox.test(genie_result, hclust_result, alternative = "less")
+wilcox.test(spectral_result, hclust_result, alternative = "less")
 ```
 
 Na koniec porównamy nasz algorytm z hdbscanem.
-```{r}
+```{r, warning=FALSE}
 spectral_result <- unlist(result %>% filter(algorithm == "spectral") %>% select(FM))
-hdbscan_result <- unlist(result %>% filter(algorithm == "kmeans") %>% select(FM))
+hdbscan_result <- unlist(result %>% filter(algorithm == "hdbscan") %>% select(FM))
 
-wilcox.test(genie_result, hclust_result, alternative = "greater")
+wilcox.test(spectral_result, hdbscan_result, alternative = "greater")
 ```
 
 Należy jednak pamiętać, że hdbscan nie wie o prawdziwej liczbie skupień - jesteśmy zatem nie fair w stosunku do niego.
 
-### Jakie zbiory były najtrudniejsze?
-```{r}
+### Jakie zbiory sprawiały najwięcej problemów analizie skupień?
+```{r, cache=TRUE}
 result %>% select(benchmark, dataset, FM, AR) %>% 
   group_by(benchmark, dataset) %>% 
   summarize(FM_mean=mean(FM), AR_mean=mean(AR)) %>%
-  arrange(FM_mean)
+  arrange(FM_mean) 
 ```
 
 Wygląda na to, że studenci WUTu byli dość złośliwi dobierając zbiory danych.
 
+## Analiza działania spectral clustering
+
+### Jak parametr M wpływa na działanie algorytmu?
+
+Zbadamy teraz jak wybór hiperparametru M wpływa na działanie algorytmu. Posłuzymy się w tym celu poniższą funkcją:
+```{r, cache=TRUE}
+test_spectral_single <- function(benchmark, dataset, M=20, k=NULL, scale=FALSE, plot=TRUE){
+  data <- read_data(benchmark, dataset)
+  X <- data$X
+  if(scale){
+    X <- scale(X)
+  }
+  Y <- data$Y
+  if(is.null(k)){
+    k = length(unique(unlist(Y)))
+  }
+  set.seed(42)  # because kmeans in spectral clustering randomly initializes centers
+  Y_pred <- spectral_clustering(X, k, M)
+  if(plot){
+    plot_data(X, Y_pred, paste(paste(benchmark, dataset, sep="/"), ": spectral ", "M=", M, sep=""))
+  }
+  print(paste("FM:", FM_index(Y, Y_pred), " AR:", adjustedRandIndex(Y, Y_pred), sep=" "))
+}
+
+```
+
+Spójrzmy teraz jak zadziała nasz algorytm dla różnych M. Zwróćmy uwagę, że wyeliminowaliśmy losowość wynikającą z losowego przyporzadkowywania początkowych wartości dla centrowych punktów w algorytmie kmeans.
+
+```{r, cache=TRUE}
+Ms <- c(2, 10, 20, 50)
+benchmark <- "sipu"; dataset <- "flame"
+for(m in Ms){
+  print(m)
+  test_spectral_single(benchmark, dataset, M=m)
+}
+```
+Jak widzimy dla małego `M` algorytm działa trochę gorzej, natomiast dla wyższych zwiększanie `M` nie zmienia tego jak algorytm przyporządkowuje punkty.
+
+Sprawdżmy jeszcze na to samo dla innych danych:
+```{r, cache=TRUE}
+Ms <- c(2, 10, 20, 50)
+benchmark <- "wut"; dataset <- "twosplashes"
+for(m in Ms){
+  print(m)
+  test_spectral_single(benchmark, dataset, M=m)
+}
+```
+
+Wyniki potwierdzają naszą tezę, że działanie algorytmu nie zmienia się wraz ze zmianą M o ile M nie jest zbyt małe. Dlatego jako domyślny parametr można przyjąć na przykład M=10.
+
+### Jak skalowanie wpływa na wyniki?
+```{r, cache=TRUE}
+benchmark <- "sipu"; dataset <- "flame"
+test_spectral_single(benchmark, dataset, scale=FALSE)
+test_spectral_single(benchmark, dataset, scale=TRUE)
+```
+W tym przypadku skalowanie trochę pogorszyło działanie algorytmu. Natomiast dla innych zbiorów działanie może być różne:
+
+```{r, cache=TRUE}
+test_spectral_single("graves", "dense", M=20)
+test_spectral_single("graves", "dense", M=20, scale=TRUE)
+```
+
+```{r, cache=TRUE}
+test_spectral_single("fcps", "tetra", M=20)
+test_spectral_single("fcps", "tetra", M=20, scale=TRUE)
+```
+
+Wynika stąd, że skalowanie nie ma wielkiego wpływu na jakość naszego algorytmu. Już podczas testów zauważyliśmy, że algorytm nie przywiązuje dużej uwagi do bliskości punktów i był w stanie łączyć punkty odległe do siebie. Zatem i skalowanie niewiele zmienia w jego działaniu. Intuicja jest taka, że w tej metodzie wykorzystujemy tylko indeksy najbliższych punktów, a zatem konkretne wielkości nie mają takiego znaczenia.
+
+## Wnioski
+Nasz algorytm `spectral clustering` działa całkiem nieźle nawet w porównaniu do różnych algorytmów R-owych. Charakteryzuje się tym, że w przeciwieństwie do na przykład `kmeans` nie przywiązuje uwagi do skupisk które są blisko siebie i udaje mu się wychwycić "podobieństwa"" między punktami leżącymi daleko od siebie. Zaobserwowaliśmy, że hiperparametr `M` nie ma dużego wpływu na jakość wykonywanej analizy skupień. Ogólnie `spectral_clustering` nie działa najszybciej, dlatego zaimplementowaliśmy go w Rcpp, co trochę poprawiło czas wykonywania analizy skupień.

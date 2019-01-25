@@ -11,13 +11,14 @@ source("spectral.R")
 library(dendextend)
 library(mclust)
 library(genie)
+set.seed(42)
 ```
 
 W tym pliku wykonamy pierwsze testy dla naszego nowo zaimplementowanego algorytmu. Wykonamy wizualizację otrzymanych skupień i obliczymy indeksy dla otrzymanych predykcji. Na koniec stworzymy i zapiszemy wygenerowane ręcznie zbiory danych. 
 
 ## Funkcje do testów
 Stwórzmy najpierw funkcje, które posłużą nam do wczytywania i analizowania danych. 
-```{r, cache=TRUE}
+```{r}
 read_data <- function(benchmark, dataset){
   matrix_file_name <- paste(dataset, ".data.gz", sep="")
   labels_file_name <- paste(dataset, ".labels0.gz", sep="")
@@ -45,7 +46,7 @@ test_spectral_single <- function(benchmark, dataset, M=20, k=NULL, scale=FALSE, 
   if(is.null(k)){
     k = length(unique(unlist(Y)))
   }
-  set.seed(42)  # because kmeans in spectral clustering randomly initializes centers
+  set.seed(123)  # because kmeans in spectral clustering randomly initializes centers
   Y_pred <- spectral_clustering(X, k, M)
   if(plot){
     plot_data(X, Y_pred, paste(paste(benchmark, dataset, sep="/"), ": spectral ", sep=""))
@@ -101,7 +102,7 @@ test_genie <- function(benchmark, dataset, k=NULL, scale=FALSE, plot=TRUE){
 W tej części przyjrzymy się, jak radzą sobie poszczególne algorytmy. W szczególności zobaczymy jak działa algorytm spectral clustering, który zaimplementowaliśmy oraz porównamy jego działanie z innymi na różnych zbiorach danych.
 
 Przyjrzyjmy się najpierw czy algorytm produkuje jakieś sensowne wyniki. Załadujemy dane ze zbioru sipu/flame. Spójrzmy jak działa.
-```{r, cache=TRUE}
+```{r}
 test_spectral_single("sipu", "flame", M=20)
 ```
 Jak widzimy nie jest źle. Żeby móc wyciągnąć więcej wniosków z wyników porównamy działanie z innymi algorytmami. Następnie przyjrzymy się też wynikom miar jakości analizy skupień indeksowi Fowlkesa–Mallowsa (FM) oraz skorygowanemu indeksowi Randa (AR). 
@@ -114,7 +115,7 @@ test_genie("sipu", "flame")
 ## Testy na własnych zbiorach danych
 Stworzymy teraz kilka prostych, przykładowych zbiorów danych, na których będziemy mogli przetestować działanie algorytmu. Pierwszy z nich wygenrujemy z rozkładów normalnych o różnych parametrach (parametr rozkładu będzie decydował o klasie). Kolejne będą wygenerowane na podstawie wymyślonych kształtów w 2D. Wszystkie te zbiory zapiszemy w folderze `datasets`.
 
-```{r, cache=TRUE}
+```{r}
 # My own datasets
 random_dataset <- function(mi1, mi2, sig, n){
   x <- rnorm(n, mi1[1], sig)
@@ -159,7 +160,7 @@ save_hearts <- function(n, n_hearts){
 
 Zobaczmy jak wyglądają nasze zbiory i jakie wyniki osiąga na nich spectral clustering.
 
-```{r, cache=TRUE}
+```{r}
 data <- random_dataset(c(0, 0), c(2, 2), 0.5, 50)
 X <- data$X
 Y <- data$Y
@@ -169,9 +170,9 @@ plot_data(X, Y_pred)
 print(paste("FM:", FM_index(Y, Y_pred), " AR:", adjustedRandIndex(Y, Y_pred), sep=" "))
 ```
 
-Algorytm jak widzimy nie odróżnia tak dobrze dwóch rozkładów, ale przynajmniej wyniki są dość sensowne. Zapiszmy nasz zbiór danych i przejdźmy do innego.
+Algorytm bardzo dobrze odróżnia obydwa rozkłady. Zapiszmy nasz zbiór danych i przejdźmy do innego.
 
-```{r, cache=TRUE}
+```{r}
 write.table(X, file=file.path("datasets", "normal.data"), row.names=FALSE, col.names=FALSE)
 write.table(Y, file=file.path("datasets", "normal.labels"), row.names=FALSE, col.names=FALSE)
 
@@ -179,15 +180,15 @@ data <- save_hearts(50, 2)
 X <- data$X
 Y <- data$Y
 plot_data(X, Y)
-Y_pred <- spectral_clustering(X, 2)
-plot_data(X, Y_pred)  # Calkiem niezle
+Y_pred <- spectral_clustering(X, 2, 10)
+plot_data(X, Y_pred)
 print(paste("FM:", FM_index(Y, Y_pred), " AR:", adjustedRandIndex(Y, Y_pred), sep=" "))
 ```
 
 Ciekawą obserwacją może być tutaj fakt, że spectral clustering niekoniecznie wybiera takie skupienia jakie myśleliśmy ze wybierze, ale nie klasyfikuje też do jednego zbioru punktów będących blisko siebie. Znajduje całkiem sensowne skupienia punktów, w którym w jednej klasie są punkty dość od siebie odległe.
 
 Wydaje mi się, że algorytm kmeans działa w przeciwny sposób i punkty w jednym skupieniu są raczej blisko siebie. Sprawdźmy to.
-```{r, cache=TRUE}
+```{r}
 Y_pred <- kmeans(X, 2)$cluster
 plot_data(X, Y_pred)
 print(paste("FM:", FM_index(Y, Y_pred), " AR:", adjustedRandIndex(Y, Y_pred), sep=" "))
