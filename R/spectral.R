@@ -34,13 +34,13 @@ Laplacian_eigen <- function(G, k){
 }
 
 
-spectral_clustering <- function(X, k, M=20){
+spectral_clustering <- function(X, k, M){
   "X: matrix of observations we want to cluster
    k: number of clusters
    M: hyperparameter - number of nearest neighbours
   "
   
-  S <- Mnn(X, 2)
+  S <- Mnn(X, M)
   G <- Mnn_graph(S)
   E <- Laplacian_eigen(G, k)
   km <- kmeans(E, k)
