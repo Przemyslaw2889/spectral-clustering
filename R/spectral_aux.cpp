@@ -57,9 +57,10 @@ NumericMatrix Mnn(NumericMatrix X, int M){
   NumericMatrix S(n, M);
   
   for(int i = 0; i < n; i++){
+    NumericVector distances(n);
     for(int j = 0; j < n; j++)
-      distances(i, j) = squared_distance(X(i, _), X(j, _));
-    S(i, _) = indexes_of_m_smallest(distances(i, _), M);
+      distances(j) = squared_distance(X(i, _), X(j, _));
+    S(i, _) = indexes_of_m_smallest(distances, M);
   }
   
   return S;

@@ -1,5 +1,5 @@
 ---
-title: "Spectral clustering"
+title: "Spectral clustering - testy"
 author: "Przemysław Kaleta"
 date: "January 23, 2019"
 output: pdf_document
@@ -193,7 +193,7 @@ plot_data(X, Y_pred)
 print(paste("FM:", FM_index(Y, Y_pred), " AR:", adjustedRandIndex(Y, Y_pred), sep=" "))
 ```
 
-Okazuje się to prawdą. Pokazuje to, że cel w analizie skupień może być niejednoznaczny i przez skupienie każdy może uważać coś innego. Do różnych celów dobre mogą być różne algorytmy. KMeans będzie dobry wtedy, kiedy wiemy, że punkty należące do jednego skupienia będą blisko siebie w przestrzeni euklidesowej.
+Okazuje się to prawdą. Pokazuje to, że cel w analizie skupień może być niejednoznaczny i **przez skupienie każdy może uważać coś innego**. Do różnych celów dobre mogą być różne algorytmy. KMeans będzie dobry wtedy, kiedy wiemy, że punkty należące do jednego skupienia będą blisko siebie w przestrzeni euklidesowej.
 
 Zapiszmy na koniec nasze wygenerowane zbiory danych.
 

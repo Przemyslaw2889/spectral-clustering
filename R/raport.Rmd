@@ -1,9 +1,24 @@
+---
+title: "Spectral clustering - raport"
+author: "Przemysław Kaleta"
+date: "January 25, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+```
+
+## Zapisanie wyników benchmarkowych
+
+Poniżej kod skryptu, w którym przetestowałem algorytmy na wszystkich zbiorach benchamrkowych i zapisałem wyniki do pliku `results.csv`.
+
+```{r, eval=FALSE}
 library(mclust)
 library(dendextend)
 library(genie)
 library(stringi)
-library(dbscan)
-library(dplyr)
 
 source("spectral.R")
 
@@ -74,29 +89,6 @@ result_hclust <- function(benchmark, dataset, method="complete", k=NULL, scale=F
               AR=adjustedRandIndex(Y, Y_pred)))
 }
 
-result_genie <- function(benchmark, dataset, k=NULL, scale=FALSE){
-  data <- read_data(benchmark, dataset)
-  X <- data$X
-  if(scale){
-    X <- scale(X)
-  }
-  Y <- data$Y
-  if(is.null(k)){
-    k = length(unique(unlist(Y)))
-  }
-  
-  hc <- hclust2(dist(X))
-  Y_pred <- cutree(hc, k=k)
-  
-  algorithm <- "genie"
-
-  return(list(benchmark=benchmark,
-              dataset=dataset,
-              algorithm=algorithm,
-              FM=FM_index(Y, Y_pred), 
-              AR=adjustedRandIndex(Y, Y_pred)))
-}
-
 result_dbscan <- function(benchmark, dataset, k=NULL, scale=FALSE){
   data <- read_data(benchmark, dataset)
   X <- data$X
@@ -130,10 +122,33 @@ result_kmeans <- function(benchmark, dataset, k=NULL, scale=FALSE){
     k = length(unique(unlist(Y)))
   }
   
-  Y_pred <- kmeans(X, centers=k)$cluster
+  Y_pred <- dbscan(X)$cluster
   
   algorithm <- "kmeans"
   
+  return(list(benchmark=benchmark,
+              dataset=dataset,
+              algorithm=algorithm,
+              FM=FM_index(Y, Y_pred), 
+              AR=adjustedRandIndex(Y, Y_pred)))
+}
+
+result_genie <- function(benchmark, dataset, k=NULL, scale=FALSE){
+  data <- read_data(benchmark, dataset)
+  X <- data$X
+  if(scale){
+    X <- scale(X)
+  }
+  Y <- data$Y
+  if(is.null(k)){
+    k = length(unique(unlist(Y)))
+  }
+  
+  hc <- hclust2(dist(X))
+  Y_pred <- cutree(hc, k=k)
+  
+  algorithm <- "genie"
+
   return(list(benchmark=benchmark,
               dataset=dataset,
               algorithm=algorithm,
@@ -159,67 +174,81 @@ for(benchmark in benchmarks){
       # testing hclust methods
       hclust_methods <- c("complete", "average", "mcquitty", "median", "centroid")
       for(method in hclust_methods){
-        result <- rbind(result, 
-                        result_hclust(benchmark, dataset), 
-                        result_kmeans(benchmark, dataset))
+        result <- rbind(result, result_hclust(benchmark, dataset, method=method))
       }
       
       # testing other methods
       result <- rbind(result, 
                       result_genie(benchmark, dataset), 
-                      result_spectral(benchmark, dataset))
+                      result_spectral(benchmark, dataset),
+                      result_dbscan(benchmark, dataset),
+                      result_kmeans(benchmark, dataset))
     }
   }
-  write.csv(result, "results.csv")  # writing to have at least partial results
+  write.csv2(result, "results.csv")  # writing to have at least partial results
 }
 
 write.csv(result, "results.csv")
+```
 
-### Analiza wynikow
+## Analiza wyników
+```{r}
 result <- read.csv("results.csv")
+```
 
-# Ktory algorytm jest najlepszy
+### Ktory algorytm jest najlepszy
+```{r}
 result %>% select(algorithm, FM, AR) %>% 
   group_by(algorithm) %>% summarise(mean_FM = mean(FM), mean_AR = mean(AR)) %>%
   arrange(desc(mean_FM))
+```
+Cieszymy się patrząc na te wyniki, bo widzimy że spectral clustering nie jest na końcu. Nie odstaje tak bardzo od metod funkcji `hclust`. Jedynie `genie` znacząco wyprzedza je wszystkie, zarówno dla miary FM jak i (zwłaszcza) AR. 
+### Czy genie jest rzeczywiście najlepszy?
+Nie ufamy za bardzo tym wynikom. Któryś z algorytmów musiał mieć największy wynik FM, ale być może było to całkiem przypadkowe. Dlatego sprawdźmy czy możemy mówić o statystycznej istotności tego wyniku. 
 
-genie_mclust <- result %>% select(algorithm, FM) %>% filter(algorithm %in% c("genie", "hclust_average"))
-pairwise.wilcox.test(genie_mclust$FM, g=genie_mclust$algorithm)
+```{r}
+genie_result <- unlist(result %>% filter(algorithm == "genie") %>% select(FM))
+hclust_result <- unlist(result %>% filter(algorithm == "hclust_average") %>% select(FM))
 
-spectral_hclust <- result %>% select(algorithm, FM) %>% filter(algorithm %in% c("hdbscan", "genie"))
-#pairwise.wilcox.test(genie_mclust$FM, g=spectral_hclust$algorithm)
-spectral_hclust %>% arrange(FM)
-genie_result <- result %>% filter(algorithm == "genie") %>% select(FM)
-typeof(unlist(genie_result))
+wilcox.test(genie_result, hclust_result, alternative = "greater")
+```
 
-##### More tests: HDBSCAN and Kmeans
-result <- list()
-benchmarks <- c("fcps", "graves", "other", "sipu", "wut")
-for(benchmark in benchmarks){
-  matrix_ending <- "data.gz"
-  labels_ending <- "labels0.gz"
-  benchmark_path <- file.path("..", "benchmarks", benchmark)
-  datasets <- list.files(benchmark_path)
-  for(dataset in datasets){
-    if(endsWith(dataset, ".txt")){
-      dataset <- stri_sub(dataset, 0, -5)
-      print(paste("Currently processing", benchmark, dataset))
-      data <- read_data(benchmark, dataset)
-      X <- data$X
-      Y <- data$Y
-      
-      # testing other methods
-      result <- rbind(result, result_kmeans(benchmark, dataset))
+Wynik, który otrzymujemy jest przybliżony. Genie okazuje się najlepszy i to mimo (być może) nie do końca poprawnej metodologii - porównywaliśmy go z najlepszym z pozostałych algorytmów.
 
-    }
-  }
-  write.csv2(result, "results_hdbscan_kmeans.csv")  # writing to have at least partial results
-}
+Sprawdźmy wynik porównań wszystkich algorytmów. Musimy tutaj uważać na problem wielokrotnego testowania, ale twórcy funkcji `pairwise.wilcox.test` pomyśleli o tym. Co ciekawe radzą sobie z tym metodą Holma, ale mamy też do wyboru inne metody.
 
-write.csv(result, "results_hdbscan_kmeans.csv")
-result_hdbscan_kmeans <- read.csv("results_hdbscan_kmeans.csv")
-result_hclust_spectral_genie <- read.csv("results.csv")
+```{r, message=FALSE}
+pairwise.wilcox.test(result$FM, result$algorithm)
+```
 
-result <- rbind(result_hclust_spectral_genie, result_hdbscan_kmeans)
-result <- result[, c("benchmark", "dataset", "algorithm", "FM", "AR")]
-write.csv(result, "results.csv")
+Testując wielokrotnie nie ma podstaw do odrzucenia hipotezy że nasz algorytm jest tak samo dobry jak hclust_average, ale wydaje mi się, ze nie ma się czym cieszyć. Nie mamy podstaw do powiedzenia, że wyniki hdbscanu są gorsze niż hclust_complete, a gołym okiem widać że gorsze są (nie mamy też podstaw do )
+
+Okazuje się, że nawet robiąc test jednokrotny nie ma podstaw do odrzucenia hipotezy, że nasz algorytm jest tak samo dobry jak hclust_average. 
+
+```{r}
+spectral_result <- unlist(result %>% filter(algorithm == "spectral") %>% select(FM))
+hclust_result <- unlist(result %>% filter(algorithm == "hclust_average") %>% select(FM))
+
+wilcox.test(genie_result, hclust_result, alternative = "less")
+```
+
+Na koniec porównamy nasz algorytm z hdbscanem.
+```{r}
+spectral_result <- unlist(result %>% filter(algorithm == "spectral") %>% select(FM))
+hdbscan_result <- unlist(result %>% filter(algorithm == "kmeans") %>% select(FM))
+
+wilcox.test(genie_result, hclust_result, alternative = "greater")
+```
+
+Należy jednak pamiętać, że hdbscan nie wie o prawdziwej liczbie skupień - jesteśmy zatem nie fair w stosunku do niego.
+
+### Jakie zbiory były najtrudniejsze?
+```{r}
+result %>% select(benchmark, dataset, FM, AR) %>% 
+  group_by(benchmark, dataset) %>% 
+  summarize(FM_mean=mean(FM), AR_mean=mean(AR)) %>%
+  arrange(FM_mean)
+```
+
+Wygląda na to, że studenci WUTu byli dość złośliwi dobierając zbiory danych.
+
