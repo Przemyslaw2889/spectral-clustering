@@ -6,7 +6,7 @@
 
 2. `Mnn_graph(S)` Computes an adjecency matrix of Graph G in which indexes i and j are connected if and only if i is M nearest neighbours of j or j is in M nearest neighbours of i. If this graph is not connected it is connected randomly.
 
-3. `Laplacian_eigen(G, k)` First we compute Laplacian of matrix G, that is a matrix L = D - G where D is diagonal with degrees of matrix G. Then we compute matrix E (n \times k) which columns consist of eigenvectors corresponding to 2, 3, ... k+1 smallest eigenvalues. We return matrix E.
+3. `Laplacian_eigen(G, k)` First we compute Laplacian of matrix G, that is a matrix L = D - G where D is diagonal with degrees of vertices in graph G. Then we compute matrix E (n \times k) which columns consist of eigenvectors corresponding to 2, 3, ... k+1 smallest eigenvalues. We return matrix E.
 
 4. `spectral_clustering(X, k, M)` Given matrix X it calls functions in 1, 2, 3 and does kmeans algorithm on matrix E. It returns cluster labels for each row in X.
 
